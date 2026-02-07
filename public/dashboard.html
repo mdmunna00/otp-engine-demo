@@ -133,9 +133,19 @@ function renderList(){
 }
 
 function addNumber(){
-  const v=document.getElementById("numInput").value.trim();
-  if(!v || numbers.includes(v)) return;
-  numbers.push(v);
+  const raw = document.getElementById("numInput").value.trim();
+  if(!raw) return;
+
+  // split by newline, comma, space
+  const parts = raw.split(/[\n, ]+/);
+
+  parts.forEach(n=>{
+    const num = n.trim();
+    if(num && !numbers.includes(num)){
+      numbers.push(num);
+    }
+  });
+
   document.getElementById("numInput").value="";
   renderList();
 }
