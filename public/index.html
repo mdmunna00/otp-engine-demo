@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OTP Login</title>
+<style>
+body{font-family:Arial;background:#0f172a;color:#fff;padding:24px}
+.card{max-width:420px;margin:auto;background:#020617;padding:20px;border-radius:10px}
+input,button{width:100%;padding:12px;margin:6px 0}
+button{background:#22c55e;border:0;color:#000}
+</style>
+</head>
+<body>
+<div class="card">
+<h3>Login with OTP (Own Site)</h3>
+<input id="phone" placeholder="Phone number">
+<button onclick="sendOtp()">Send OTP</button>
+<input id="otp" placeholder="Enter OTP">
+<button onclick="verifyOtp()">Verify</button>
+<p id="log"></p>
+</div>
+
+<script>
+async function sendOtp(){
+  const phone = phoneEl().value;
+  const r = await fetch('/api/send-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone})});
+  const d = await r.json();
+  log().innerText = "Mock OTP (learning): "+d.mockOtp;
+}
+async function verifyOtp(){
+  const phone = phoneEl().value, otp = otpEl().value;
+  const r = await fetch('/api/verify-otp',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({phone,otp})});
+  const d = await r.json();
+  if(d.ok) location.href="/dashboard.html";
+  else log().innerText="Invalid OTP ❌";
+}
+const phoneEl=()=>document.getElementById('phone');
+const otpEl=()=>document.getElementById('otp');
+const log=()=>document.getElementById('log');
+</script>
+</body>
+</html>
