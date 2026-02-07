@@ -1,79 +1,193 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dashboard</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automation Dashboard</title>
+
 <style>
-body{font-family:Arial;background:#020617;color:#fff;padding:16px}
-.wrap{max-width:800px;margin:auto}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.card{background:#0f172a;padding:12px;border-radius:8px}
-button{padding:10px;border:0}
-.start{background:#22c55e} .stop{background:#ef4444}
-.log{height:180px;overflow:auto;background:#000;padding:8px;font-size:12px}
-input[type=range]{width:100%}
-@media(max-width:600px){.grid{grid-template-columns:1fr}}
+*{box-sizing:border-box;font-family:Segoe UI,Arial}
+body{
+  margin:0;
+  background:#0b0f1a;
+  color:#fff;
+}
+.container{
+  display:flex;
+  min-height:100vh;
+}
+.sidebar{
+  width:280px;
+  background:#0f172a;
+  padding:20px;
+}
+.sidebar h2{
+  margin:0 0 20px;
+  color:#38bdf8;
+}
+.label{font-size:12px;color:#94a3b8;margin-top:15px}
+input,select{
+  width:100%;
+  padding:10px;
+  margin-top:5px;
+  background:#020617;
+  border:1px solid #1e293b;
+  color:#fff;
+  border-radius:6px;
+}
+.range{
+  width:100%;
+}
+button{
+  width:100%;
+  padding:12px;
+  margin-top:12px;
+  border:none;
+  border-radius:6px;
+  font-weight:bold;
+  cursor:pointer;
+}
+.start{background:#22c55e;color:#000}
+.stop{background:#ef4444;color:#000}
+.status{
+  margin-top:15px;
+  font-size:13px;
+  color:#94a3b8;
+}
+
+.main{
+  flex:1;
+  padding:20px;
+}
+.cards{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:15px;
+}
+.card{
+  background:#020617;
+  padding:15px;
+  border-radius:10px;
+  text-align:center;
+}
+.card h3{margin:0;font-size:14px;color:#94a3b8}
+.card p{font-size:28px;margin:8px 0 0}
+
+.logbox{
+  margin-top:20px;
+  background:#020617;
+  border-radius:10px;
+  padding:15px;
+}
+.log{
+  height:260px;
+  overflow:auto;
+  font-size:12px;
+  line-height:1.6;
+}
+@media(max-width:900px){
+  .container{flex-direction:column}
+  .sidebar{width:100%}
+  .cards{grid-template-columns:repeat(2,1fr)}
+}
 </style>
 </head>
+
 <body>
-<div class="wrap">
-<h3>Engine Dashboard</h3>
+<div class="container">
 
-<div class="card">
-<label>Threads: <b id="tVal">1</b></label>
-<input type="range" min="1" max="5" value="1" id="threads">
-<label>Interval (sec): <b id="iVal">2</b></label>
-<input type="range" min="1" max="5" value="2" id="interval">
-<button class="start" onclick="start()">Start</button>
-<button class="stop" onclick="stop()">Stop</button>
+<!-- LEFT PANEL -->
+<div class="sidebar">
+  <h2>CHATGPT PRO v1.0</h2>
+
+  <div class="label">TARGET RANGE</div>
+  <input placeholder="017xxxxxxx">
+
+  <div class="label">CHECK THREADS</div>
+  <input type="range" min="1" max="5" value="1" id="threads" class="range">
+  <small id="tVal">1</small>
+
+  <div class="label">AUTO UPDATE (SEC)</div>
+  <input type="number" id="interval" value="2">
+
+  <button class="start" onclick="startEngine()">START ENGINE</button>
+  <button class="stop" onclick="stopEngine()">STOP ENGINE</button>
+
+  <div class="status" id="status">Status: Idle</div>
 </div>
 
-<div class="grid">
-<div class="card">Success: <b id="s">0</b></div>
-<div class="card">Failed: <b id="f">0</b></div>
-<div class="card">Error: <b id="e">0</b></div>
+<!-- RIGHT PANEL -->
+<div class="main">
+  <h2>CHATGPT DASHBOARD</h2>
+
+  <div class="cards">
+    <div class="card"><h3>SUCCESS</h3><p id="success">0</p></div>
+    <div class="card"><h3>FAILED</h3><p id="failed">0</p></div>
+    <div class="card"><h3>ERROR</h3><p id="error">0</p></div>
+    <div class="card"><h3>TOTAL</h3><p id="total">0</p></div>
+  </div>
+
+  <div class="logbox">
+    <h3>LIVE ACTIVITY LOG</h3>
+    <div class="log" id="log"></div>
+  </div>
 </div>
 
-<div class="card">
-<h4>Live Log</h4>
-<div class="log" id="log"></div>
-</div>
 </div>
 
 <script>
-let timer=null, running=false;
-const s=()=>document.getElementById('s');
-const f=()=>document.getElementById('f');
-const e=()=>document.getElementById('e');
-const log=()=>document.getElementById('log');
-const threadsEl=document.getElementById('threads');
-const intervalEl=document.getElementById('interval');
-threadsEl.oninput=()=>tVal.innerText=threadsEl.value;
-intervalEl.oninput=()=>iVal.innerText=intervalEl.value;
+let timer=null;
+let running=false;
 
-function add(msg){
-  log().innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}<br>` + log().innerHTML;
+const logBox=document.getElementById("log");
+const sEl=document.getElementById("success");
+const fEl=document.getElementById("failed");
+const eEl=document.getElementById("error");
+const tEl=document.getElementById("total");
+const statusEl=document.getElementById("status");
+const threadsEl=document.getElementById("threads");
+const intervalEl=document.getElementById("interval");
+
+threadsEl.oninput=()=>document.getElementById("tVal").innerText=threadsEl.value;
+
+function addLog(msg){
+  logBox.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br>`+logBox.innerHTML;
 }
 
 async function tick(){
-  const threads = Number(threadsEl.value);
+  const threads=Number(threadsEl.value);
   for(let i=0;i<threads;i++){
-    const r = await fetch('/api/mock-task');
-    const d = await r.json();
-    if(d.status==='success'){ s().innerText=+s().innerText+1; add('SUCCESS'); }
-    else if(d.status==='failed'){ f().innerText=+f().innerText+1; add('FAILED'); }
-    else{ e().innerText=+e().innerText+1; add('ERROR'); }
+    const r=await fetch("/api/mock-task");
+    const d=await r.json();
+    tEl.innerText=+tEl.innerText+1;
+
+    if(d.status==="success"){
+      sEl.innerText=+sEl.innerText+1;
+      addLog("SUCCESS");
+    }else if(d.status==="failed"){
+      fEl.innerText=+fEl.innerText+1;
+      addLog("FAILED");
+    }else{
+      eEl.innerText=+eEl.innerText+1;
+      addLog("ERROR");
+    }
   }
 }
 
-function start(){
+function startEngine(){
   if(running) return;
-  running=true; add('Engine START');
-  timer=setInterval(tick, Number(intervalEl.value)*1000);
+  running=true;
+  statusEl.innerText="Status: Running";
+  addLog("ENGINE STARTED");
+  timer=setInterval(tick,Number(intervalEl.value)*1000);
 }
-function stop(){
-  running=false; clearInterval(timer); add('Engine STOP');
+function stopEngine(){
+  running=false;
+  clearInterval(timer);
+  statusEl.innerText="Status: Idle";
+  addLog("ENGINE STOPPED");
 }
 </script>
+
 </body>
 </html>
