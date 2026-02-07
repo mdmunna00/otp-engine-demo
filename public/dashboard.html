@@ -1,90 +1,67 @@
 <!doctype html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Automation Dashboard</title>
 
 <style>
-*{box-sizing:border-box;font-family:Segoe UI,Arial}
-body{
-  margin:0;
-  background:#0b0f1a;
-  color:#fff;
+body{margin:0;font-family:Segoe UI,Arial;background:#0b0f1a;color:#fff}
+.container{display:flex;min-height:100vh}
+.sidebar{width:300px;background:#0f172a;padding:18px}
+.main{flex:1;padding:18px}
+
+h2{color:#38bdf8;margin-top:0}
+.label{font-size:12px;color:#94a3b8;margin-top:14px}
+
+input,textarea{
+  width:100%;padding:10px;margin-top:6px;
+  background:#020617;border:1px solid #1e293b;
+  color:#fff;border-radius:6px
 }
-.container{
-  display:flex;
-  min-height:100vh;
-}
-.sidebar{
-  width:280px;
-  background:#0f172a;
-  padding:20px;
-}
-.sidebar h2{
-  margin:0 0 20px;
-  color:#38bdf8;
-}
-.label{font-size:12px;color:#94a3b8;margin-top:15px}
-input,select{
-  width:100%;
-  padding:10px;
-  margin-top:5px;
-  background:#020617;
-  border:1px solid #1e293b;
-  color:#fff;
-  border-radius:6px;
-}
-.range{
-  width:100%;
-}
+textarea{resize:none}
+
 button{
-  width:100%;
-  padding:12px;
-  margin-top:12px;
-  border:none;
-  border-radius:6px;
-  font-weight:bold;
-  cursor:pointer;
+  width:100%;padding:11px;margin-top:10px;
+  border:0;border-radius:6px;
+  font-weight:bold;cursor:pointer
 }
+.add{background:#3b82f6;color:#fff}
 .start{background:#22c55e;color:#000}
 .stop{background:#ef4444;color:#000}
-.status{
-  margin-top:15px;
-  font-size:13px;
-  color:#94a3b8;
-}
 
-.main{
-  flex:1;
-  padding:20px;
-}
+.status{font-size:13px;color:#94a3b8;margin-top:10px}
+
 .cards{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:15px;
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:12px;margin-top:10px
 }
 .card{
-  background:#020617;
-  padding:15px;
-  border-radius:10px;
-  text-align:center;
+  background:#020617;padding:14px;border-radius:10px;
+  text-align:center
 }
-.card h3{margin:0;font-size:14px;color:#94a3b8}
-.card p{font-size:28px;margin:8px 0 0}
+.card h3{margin:0;font-size:13px;color:#94a3b8}
+.card p{margin:6px 0 0;font-size:26px}
+
+.list{
+  background:#020617;border-radius:10px;
+  margin-top:12px;padding:10px;max-height:220px;overflow:auto
+}
+.item{
+  display:flex;justify-content:space-between;
+  padding:6px;border-bottom:1px solid #1e293b;
+  font-size:13px
+}
+.item button{
+  width:auto;padding:2px 8px;font-size:12px;
+  background:#ef4444;color:#000
+}
 
 .logbox{
-  margin-top:20px;
-  background:#020617;
-  border-radius:10px;
-  padding:15px;
+  background:#020617;border-radius:10px;
+  margin-top:14px;padding:12px
 }
-.log{
-  height:260px;
-  overflow:auto;
-  font-size:12px;
-  line-height:1.6;
-}
+.log{height:200px;overflow:auto;font-size:12px}
+
 @media(max-width:900px){
   .container{flex-direction:column}
   .sidebar{width:100%}
@@ -96,98 +73,114 @@ button{
 <body>
 <div class="container">
 
-<!-- LEFT PANEL -->
+<!-- LEFT -->
 <div class="sidebar">
-  <h2>CHATGPT PRO v1.0</h2>
+<h2>CHATGPT PRO v1.0</h2>
 
-  <div class="label">TARGET RANGE</div>
-  <input placeholder="017xxxxxxx">
+<div class="label">ADD NUMBER</div>
+<input id="numInput" placeholder="017xxxxxxxx">
+<button class="add" onclick="addNumber()">ADD</button>
 
-  <div class="label">CHECK THREADS</div>
-  <input type="range" min="1" max="5" value="1" id="threads" class="range">
-  <small id="tVal">1</small>
-
-  <div class="label">AUTO UPDATE (SEC)</div>
-  <input type="number" id="interval" value="2">
-
-  <button class="start" onclick="startEngine()">START ENGINE</button>
-  <button class="stop" onclick="stopEngine()">STOP ENGINE</button>
-
-  <div class="status" id="status">Status: Idle</div>
+<div class="status">
+Total Numbers: <span id="numCount">0</span>
 </div>
 
-<!-- RIGHT PANEL -->
+<button class="start" onclick="startEngine()">START ENGINE</button>
+<button class="stop" onclick="stopEngine()">STOP ENGINE</button>
+
+<div class="status" id="status">Status: Idle</div>
+</div>
+
+<!-- RIGHT -->
 <div class="main">
-  <h2>CHATGPT DASHBOARD</h2>
+<h2>CHATGPT DASHBOARD</h2>
 
-  <div class="cards">
-    <div class="card"><h3>SUCCESS</h3><p id="success">0</p></div>
-    <div class="card"><h3>FAILED</h3><p id="failed">0</p></div>
-    <div class="card"><h3>ERROR</h3><p id="error">0</p></div>
-    <div class="card"><h3>TOTAL</h3><p id="total">0</p></div>
-  </div>
+<div class="cards">
+  <div class="card"><h3>SUCCESS</h3><p id="success">0</p></div>
+  <div class="card"><h3>FAILED</h3><p id="failed">0</p></div>
+  <div class="card"><h3>ERROR</h3><p id="error">0</p></div>
+  <div class="card"><h3>TOTAL</h3><p id="total">0</p></div>
+</div>
 
-  <div class="logbox">
-    <h3>LIVE ACTIVITY LOG</h3>
-    <div class="log" id="log"></div>
-  </div>
+<div class="list" id="list"></div>
+
+<div class="logbox">
+<h3>LIVE ACTIVITY LOG</h3>
+<div class="log" id="log"></div>
+</div>
 </div>
 
 </div>
 
 <script>
+let numbers=[];
 let timer=null;
 let running=false;
 
-const logBox=document.getElementById("log");
-const sEl=document.getElementById("success");
-const fEl=document.getElementById("failed");
-const eEl=document.getElementById("error");
-const tEl=document.getElementById("total");
-const statusEl=document.getElementById("status");
-const threadsEl=document.getElementById("threads");
-const intervalEl=document.getElementById("interval");
+const listEl=document.getElementById("list");
+const numCountEl=document.getElementById("numCount");
+const logEl=document.getElementById("log");
 
-threadsEl.oninput=()=>document.getElementById("tVal").innerText=threadsEl.value;
+function renderList(){
+  listEl.innerHTML="";
+  numbers.forEach((n,i)=>{
+    const d=document.createElement("div");
+    d.className="item";
+    d.innerHTML=`${n} <button onclick="removeNumber(${i})">X</button>`;
+    listEl.appendChild(d);
+  });
+  numCountEl.innerText=numbers.length;
+}
 
-function addLog(msg){
-  logBox.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br>`+logBox.innerHTML;
+function addNumber(){
+  const v=document.getElementById("numInput").value.trim();
+  if(!v || numbers.includes(v)) return;
+  numbers.push(v);
+  document.getElementById("numInput").value="";
+  renderList();
+}
+
+function removeNumber(i){
+  numbers.splice(i,1);
+  renderList();
+}
+
+function log(msg){
+  logEl.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br>`+logEl.innerHTML;
 }
 
 async function tick(){
-  const threads=Number(threadsEl.value);
-  for(let i=0;i<threads;i++){
-    const r=await fetch("/api/mock-task");
-    const d=await r.json();
-    tEl.innerText=+tEl.innerText+1;
-
-    if(d.status==="success"){
-      sEl.innerText=+sEl.innerText+1;
-      addLog("SUCCESS");
-    }else if(d.status==="failed"){
-      fEl.innerText=+fEl.innerText+1;
-      addLog("FAILED");
-    }else{
-      eEl.innerText=+eEl.innerText+1;
-      addLog("ERROR");
-    }
+  if(numbers.length===0){ log("NO NUMBERS"); return; }
+  const n=numbers[Math.floor(Math.random()*numbers.length)];
+  const r=await fetch("/api/mock-task");
+  const d=await r.json();
+  document.getElementById("total").innerText++;
+  if(d.status==="success"){
+    document.getElementById("success").innerText++;
+    log(`SUCCESS → ${n}`);
+  }else if(d.status==="failed"){
+    document.getElementById("failed").innerText++;
+    log(`FAILED → ${n}`);
+  }else{
+    document.getElementById("error").innerText++;
+    log(`ERROR → ${n}`);
   }
 }
 
 function startEngine(){
   if(running) return;
   running=true;
-  statusEl.innerText="Status: Running";
-  addLog("ENGINE STARTED");
-  timer=setInterval(tick,Number(intervalEl.value)*1000);
+  document.getElementById("status").innerText="Status: Running";
+  log("ENGINE START");
+  timer=setInterval(tick,2000);
 }
+
 function stopEngine(){
   running=false;
   clearInterval(timer);
-  statusEl.innerText="Status: Idle";
-  addLog("ENGINE STOPPED");
+  document.getElementById("status").innerText="Status: Idle";
+  log("ENGINE STOP");
 }
 </script>
-
 </body>
 </html>
