@@ -1,25 +1,22 @@
 <!doctype html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Automation Dashboard</title>
 
 <style>
 body{margin:0;font-family:Segoe UI,Arial;background:#0b0f1a;color:#fff}
 .container{display:flex;min-height:100vh}
-.sidebar{width:300px;background:#0f172a;padding:18px}
+.sidebar{width:320px;background:#0f172a;padding:18px}
 .main{flex:1;padding:18px}
-
 h2{color:#38bdf8;margin-top:0}
 .label{font-size:12px;color:#94a3b8;margin-top:14px}
-
 input,textarea{
   width:100%;padding:10px;margin-top:6px;
   background:#020617;border:1px solid #1e293b;
   color:#fff;border-radius:6px
 }
-textarea{resize:none}
-
 button{
   width:100%;padding:11px;margin-top:10px;
   border:0;border-radius:6px;
@@ -28,9 +25,7 @@ button{
 .add{background:#3b82f6;color:#fff}
 .start{background:#22c55e;color:#000}
 .stop{background:#ef4444;color:#000}
-
 .status{font-size:13px;color:#94a3b8;margin-top:10px}
-
 .cards{
   display:grid;grid-template-columns:repeat(4,1fr);
   gap:12px;margin-top:10px
@@ -41,10 +36,9 @@ button{
 }
 .card h3{margin:0;font-size:13px;color:#94a3b8}
 .card p{margin:6px 0 0;font-size:26px}
-
 .list{
   background:#020617;border-radius:10px;
-  margin-top:12px;padding:10px;max-height:220px;overflow:auto
+  margin-top:12px;padding:10px;max-height:180px;overflow:auto
 }
 .item{
   display:flex;justify-content:space-between;
@@ -55,13 +49,11 @@ button{
   width:auto;padding:2px 8px;font-size:12px;
   background:#ef4444;color:#000
 }
-
 .logbox{
   background:#020617;border-radius:10px;
   margin-top:14px;padding:12px
 }
 .log{height:200px;overflow:auto;font-size:12px}
-
 @media(max-width:900px){
   .container{flex-direction:column}
   .sidebar{width:100%}
@@ -77,17 +69,20 @@ button{
 <div class="sidebar">
 <h2>CHATGPT PRO v1.0</h2>
 
-<div class="label">ADD NUMBER</div>
-<input id="numInput" placeholder="017xxxxxxxx">
-<button class="add" onclick="addNumber()">ADD</button>
+<div class="label">ADD NUMBERS (bulk paste supported)</div>
+<textarea id="numInput" rows="4" placeholder="01711111111
+01722222222
+01733333333"></textarea>
+<button class="add" onclick="addNumber()">ADD NUMBERS</button>
+<div class="status">Total Numbers: <span id="numCount">0</span></div>
 
-<div class="status">
-Total Numbers: <span id="numCount">0</span>
-</div>
+<div class="label">ADD API ENDPOINT</div>
+<input id="apiInput" placeholder="https://your-api.com/send">
+<button class="add" onclick="addApi()">ADD API</button>
+<div class="status">Total APIs: <span id="apiCount">0</span></div>
 
 <button class="start" onclick="startEngine()">START ENGINE</button>
 <button class="stop" onclick="stopEngine()">STOP ENGINE</button>
-
 <div class="status" id="status">Status: Idle</div>
 </div>
 
@@ -102,7 +97,8 @@ Total Numbers: <span id="numCount">0</span>
   <div class="card"><h3>TOTAL</h3><p id="total">0</p></div>
 </div>
 
-<div class="list" id="list"></div>
+<div class="list" id="numberList"></div>
+<div class="list" id="apiList"></div>
 
 <div class="logbox">
 <h3>LIVE ACTIVITY LOG</h3>
@@ -113,83 +109,87 @@ Total Numbers: <span id="numCount">0</span>
 </div>
 
 <script>
-let numbers=[];
-let timer=null;
-let running=false;
+let numbers=[], apis=[], queue=[];
+let running=false, timer=null, apiIndex=0;
 
-const listEl=document.getElementById("list");
-const numCountEl=document.getElementById("numCount");
+const numListEl=document.getElementById("numberList");
+const apiListEl=document.getElementById("apiList");
 const logEl=document.getElementById("log");
 
-function renderList(){
-  listEl.innerHTML="";
+function render(){
+  numListEl.innerHTML="";
   numbers.forEach((n,i)=>{
-    const d=document.createElement("div");
-    d.className="item";
-    d.innerHTML=`${n} <button onclick="removeNumber(${i})">X</button>`;
-    listEl.appendChild(d);
+    numListEl.innerHTML+=`${n} <button onclick="removeNumber(${i})">X</button><br>`;
   });
-  numCountEl.innerText=numbers.length;
+  apiListEl.innerHTML="";
+  apis.forEach((a,i)=>{
+    apiListEl.innerHTML+=`${a} <button onclick="removeApi(${i})">X</button><br>`;
+  });
+  numCount.innerText=numbers.length;
+  apiCount.innerText=apis.length;
 }
 
 function addNumber(){
-  const raw = document.getElementById("numInput").value.trim();
+  const raw=numInput.value.trim();
   if(!raw) return;
-
-  // split by newline, comma, space
-  const parts = raw.split(/[\n, ]+/);
-
-  parts.forEach(n=>{
-    const num = n.trim();
-    if(num && !numbers.includes(num)){
-      numbers.push(num);
-    }
+  raw.split(/[\n, ]+/).forEach(n=>{
+    if(n && !numbers.includes(n)) numbers.push(n);
   });
-
-  document.getElementById("numInput").value="";
-  renderList();
+  numInput.value="";
+  render();
 }
-
-function removeNumber(i){
-  numbers.splice(i,1);
-  renderList();
+function removeNumber(i){numbers.splice(i,1);render();}
+function addApi(){
+  const v=apiInput.value.trim();
+  if(v && !apis.includes(v)) apis.push(v);
+  apiInput.value="";
+  render();
 }
-
+function removeApi(i){apis.splice(i,1);render();}
+function getNextApi(){
+  const api=apis[apiIndex%apis.length];
+  apiIndex++;
+  return api;
+}
 function log(msg){
   logEl.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br>`+logEl.innerHTML;
 }
 
 async function tick(){
-  if(numbers.length===0){ log("NO NUMBERS"); return; }
-  const n=numbers[Math.floor(Math.random()*numbers.length)];
-  const r=await fetch("/api/mock-task");
-  const d=await r.json();
-  document.getElementById("total").innerText++;
-  if(d.status==="success"){
-    document.getElementById("success").innerText++;
-    log(`SUCCESS → ${n}`);
-  }else if(d.status==="failed"){
-    document.getElementById("failed").innerText++;
-    log(`FAILED → ${n}`);
-  }else{
-    document.getElementById("error").innerText++;
-    log(`ERROR → ${n}`);
+  if(queue.length===0){
+    stopEngine();
+    log("ALL NUMBERS COMPLETED");
+    return;
+  }
+  const phone=queue.shift();
+  const api=getNextApi();
+  total.innerText++;
+  try{
+    const r=await fetch(api,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({phone})
+    });
+    const d=await r.json();
+    if(d.status==="success"){success.innerText++;log(`SENT → ${phone}`);}
+    else{failed.innerText++;log(`FAILED → ${phone}`);}
+  }catch(e){
+    error.innerText++;log(`ERROR → ${phone}`);
   }
 }
 
 function startEngine(){
-  if(running) return;
+  if(running||numbers.length===0||apis.length===0) return;
+  queue=[...numbers];
   running=true;
-  document.getElementById("status").innerText="Status: Running";
+  status.innerText="Status: Running";
   log("ENGINE START");
   timer=setInterval(tick,2000);
 }
-
 function stopEngine(){
   running=false;
   clearInterval(timer);
-  document.getElementById("status").innerText="Status: Idle";
-  log("ENGINE STOP");
+  status.innerText="Status: Idle";
 }
 </script>
 </body>
