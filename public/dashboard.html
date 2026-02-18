@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Automation Dashboard</title>
+<title>Headless Automation Dashboard</title>
 
 <style>
 body{margin:0;font-family:Segoe UI,Arial;background:#0b0f1a;color:#fff}
@@ -22,7 +22,6 @@ button{
   border:0;border-radius:6px;
   font-weight:bold;cursor:pointer
 }
-.add{background:#3b82f6;color:#fff}
 .start{background:#22c55e;color:#000}
 .stop{background:#ef4444;color:#000}
 .status{font-size:13px;color:#94a3b8;margin-top:10px}
@@ -39,15 +38,6 @@ button{
 .list{
   background:#020617;border-radius:10px;
   margin-top:12px;padding:10px;max-height:180px;overflow:auto
-}
-.item{
-  display:flex;justify-content:space-between;
-  padding:6px;border-bottom:1px solid #1e293b;
-  font-size:13px
-}
-.item button{
-  width:auto;padding:2px 8px;font-size:12px;
-  background:#ef4444;color:#000
 }
 .logbox{
   background:#020617;border-radius:10px;
@@ -67,22 +57,20 @@ button{
 
 <!-- LEFT -->
 <div class="sidebar">
-<h2>CHATGPT PRO v1.0</h2>
+<h2>HEADLESS ENGINE</h2>
 
 <div class="label">ADD NUMBERS (bulk paste supported)</div>
 <textarea id="numInput" rows="4" placeholder="01711111111
 01722222222
 01733333333"></textarea>
-<button class="add" onclick="addNumber()">ADD NUMBERS</button>
+<button onclick="addNumber()">ADD NUMBERS</button>
 <div class="status">Total Numbers: <span id="numCount">0</span></div>
-
-<div class="label">ADD API ENDPOINT</div>
-<input id="apiInput" placeholder="/api/mock-task">
-<button class="add" onclick="addApi()">ADD API</button>
-<div class="status">Total APIs: <span id="apiCount">0</span></div>
 
 <div class="label">DELAY (ms)</div>
 <input id="delayInput" type="number" value="2000">
+
+<div class="label">THREADS</div>
+<input id="threadInput" type="number" value="1">
 
 <button class="start" onclick="startEngine()">START ENGINE</button>
 <button class="stop" onclick="stopEngine()">STOP ENGINE</button>
@@ -92,7 +80,7 @@ button{
 
 <!-- RIGHT -->
 <div class="main">
-<h2>CHATGPT DASHBOARD</h2>
+<h2>DASHBOARD</h2>
 
 <div class="cards">
   <div class="card"><h3>SUCCESS</h3><p id="success">0</p></div>
@@ -102,7 +90,6 @@ button{
 </div>
 
 <div class="list" id="numberList"></div>
-<div class="list" id="apiList"></div>
 
 <div class="logbox">
 <h3>LIVE ACTIVITY LOG</h3>
@@ -113,22 +100,16 @@ button{
 </div>
 
 <script>
-let numbers=[], apis=[];
+let numbers=[];
 const numListEl=document.getElementById("numberList");
-const apiListEl=document.getElementById("apiList");
 const logEl=document.getElementById("log");
 
 function render(){
   numListEl.innerHTML="";
   numbers.forEach((n,i)=>{
-    numListEl.innerHTML+=`${n} <button onclick="removeNumber(${i})">X</button><br>`;
-  });
-  apiListEl.innerHTML="";
-  apis.forEach((a,i)=>{
-    apiListEl.innerHTML+=`${a} <button onclick="removeApi(${i})">X</button><br>`;
+    numListEl.innerHTML+=`${n}<br>`;
   });
   numCount.innerText=numbers.length;
-  apiCount.innerText=apis.length;
 }
 
 function addNumber(){
@@ -140,14 +121,6 @@ function addNumber(){
   numInput.value="";
   render();
 }
-function removeNumber(i){numbers.splice(i,1);render();}
-function addApi(){
-  const v=apiInput.value.trim();
-  if(v && !apis.includes(v)) apis.push(v);
-  apiInput.value="";
-  render();
-}
-function removeApi(i){apis.splice(i,1);render();}
 
 function log(msg){
   logEl.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br>`+logEl.innerHTML;
@@ -155,15 +128,15 @@ function log(msg){
 
 async function startEngine(){
 
-  if(numbers.length===0 || apis.length===0) return;
+  if(numbers.length===0) return;
 
   await fetch("/api/start-job",{
     method:"POST",
     headers:{ "Content-Type":"application/json" },
     body:JSON.stringify({
       numbers,
-      apiList:apis,
-      delay:parseInt(delayInput.value)||2000
+      delay:parseInt(delayInput.value)||2000,
+      threads:parseInt(threadInput.value)||1
     })
   });
 
