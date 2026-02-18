@@ -77,12 +77,16 @@ button{
 <div class="status">Total Numbers: <span id="numCount">0</span></div>
 
 <div class="label">ADD API ENDPOINT</div>
-<input id="apiInput" placeholder="https://your-api.com/send">
+<input id="apiInput" placeholder="/api/mock-task">
 <button class="add" onclick="addApi()">ADD API</button>
 <div class="status">Total APIs: <span id="apiCount">0</span></div>
 
+<div class="label">DELAY (ms)</div>
+<input id="delayInput" type="number" value="2000">
+
 <button class="start" onclick="startEngine()">START ENGINE</button>
 <button class="stop" onclick="stopEngine()">STOP ENGINE</button>
+
 <div class="status" id="status">Status: Idle</div>
 </div>
 
@@ -109,9 +113,7 @@ button{
 </div>
 
 <script>
-let numbers=[], apis=[], queue=[];
-let running=false, timer=null, apiIndex=0;
-
+let numbers=[], apis=[];
 const numListEl=document.getElementById("numberList");
 const apiListEl=document.getElementById("apiList");
 const logEl=document.getElementById("log");
@@ -146,51 +148,50 @@ function addApi(){
   render();
 }
 function removeApi(i){apis.splice(i,1);render();}
-function getNextApi(){
-  const api=apis[apiIndex%apis.length];
-  apiIndex++;
-  return api;
-}
+
 function log(msg){
   logEl.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br>`+logEl.innerHTML;
 }
 
-async function tick(){
-  if(queue.length===0){
-    stopEngine();
-    log("ALL NUMBERS COMPLETED");
-    return;
-  }
-  const phone=queue.shift();
-  const api=getNextApi();
-  total.innerText++;
-  try{
-    const r=await fetch(api,{
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({phone})
-    });
-    const d=await r.json();
-    if(d.status==="success"){success.innerText++;log(`SENT → ${phone}`);}
-    else{failed.innerText++;log(`FAILED → ${phone}`);}
-  }catch(e){
-    error.innerText++;log(`ERROR → ${phone}`);
-  }
+async function startEngine(){
+
+  if(numbers.length===0 || apis.length===0) return;
+
+  await fetch("/api/start-job",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({
+      numbers,
+      apiList:apis,
+      delay:parseInt(delayInput.value)||2000
+    })
+  });
+
+  status.innerText="Status: Running";
+  log("ENGINE STARTED");
 }
 
-function startEngine(){
-  if(running||numbers.length===0||apis.length===0) return;
-  queue=[...numbers];
-  running=true;
-  status.innerText="Status: Running";
-  log("ENGINE START");
-  timer=setInterval(tick,2000);
-}
-function stopEngine(){
-  running=false;
-  clearInterval(timer);
+async function stopEngine(){
+  await fetch("/api/stop-job",{method:"POST"});
   status.innerText="Status: Idle";
+  log("ENGINE STOPPED");
 }
+
+async function updateStatus(){
+  const r = await fetch("/api/status");
+  const d = await r.json();
+
+  success.innerText=d.success;
+  failed.innerText=d.failed;
+  error.innerText=d.error;
+  total.innerText=d.total;
+
+  if(!d.running)
+    status.innerText="Status: Idle";
+}
+
+setInterval(updateStatus,1000);
 </script>
+
 </body>
 </html>
