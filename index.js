@@ -5,9 +5,9 @@ const app = express();
 app.use(express.json());
 app.use(express.static("public"));
 
-/* =====================
-   OTP SYSTEM (existing)
-===================== */
+/* ======================
+   OTP LOGIN SYSTEM
+====================== */
 
 const otps = {};
 
@@ -26,9 +26,9 @@ app.post("/api/verify-otp",(req,res)=>{
   res.json({ ok: row.otp === otp });
 });
 
-/* =====================
-   BACKGROUND ENGINE
-===================== */
+/* ======================
+   THREADED HEADLESS ENGINE
+====================== */
 
 let job={
   running:false,
@@ -37,56 +37,63 @@ let job={
   failed:0,
   error:0,
   total:0,
-  delay:2000
+  delay:2000,
+  threads:1
 };
 
-let apis=[];
-let apiIndex=0;
+let activeWorkers=0;
 
-function getNextApi(){
-  const api = apis[apiIndex % apis.length];
-  apiIndex++;
-  return api;
+async function worker(browser){
+
+  while(job.running && job.queue.length>0){
+
+    const phone = job.queue.shift();
+    if(!phone) return;
+
+    job.total++;
+
+    try{
+
+      const page = await browser.newPage();
+
+      await page.goto("https://your-own-site.com");
+
+      await page.waitForSelector("#phoneInput");
+
+      await page.click("#phoneInput",{clickCount:3});
+      await page.keyboard.press("Backspace");
+
+      await page.type("#phoneInput", phone);
+      await page.click("#submitBtn");
+
+      await page.waitForTimeout(2000);
+
+      const text = await page.evaluate(()=>{
+        return document.body.innerText;
+      });
+
+      if(text.includes("OTP Sent")){
+        job.success++;
+      }else{
+        job.failed++;
+      }
+
+      await page.close();
+
+    }catch(e){
+      job.error++;
+    }
+
+    if(job.delay>0)
+      await new Promise(r=>setTimeout(r,job.delay));
+  }
 }
 
-async function processQueue(){
+app.post("/api/start-job", async (req,res)=>{
 
-  if(!job.running) return;
+  const { numbers, delay, threads } = req.body;
 
-  if(job.queue.length===0){
-    job.running=false;
-    return;
-  }
-
-  const phone = job.queue.shift();
-  job.total++;
-
-  try{
-    const api = getNextApi();
-    const r = await fetch(api,{
-      method:"POST",
-      headers:{ "Content-Type":"application/json" },
-      body:JSON.stringify({phone})
-    });
-
-    const d = await r.json();
-
-    if(d.status==="success") job.success++;
-    else job.failed++;
-
-  }catch(e){
-    job.error++;
-  }
-
-  if(job.running){
-    setTimeout(processQueue, job.delay);
-  }
-}
-
-app.post("/api/start-job",(req,res)=>{
-  const { numbers, apiList, delay } = req.body;
-
-  if(!numbers.length || !apiList.length)
+  if(!numbers.length)
     return res.json({ok:false});
 
   job={
@@ -96,13 +103,25 @@ app.post("/api/start-job",(req,res)=>{
     failed:0,
     error:0,
     total:0,
-    delay:delay||2000
+    delay:delay||2000,
+    threads:threads||1
   };
 
-  apis = apiList;
-  apiIndex=0;
+  const browser = await puppeteer.launch({
+    headless:true,
+    args:["--no-sandbox","--disable-setuid-sandbox"]
+  });
 
-  processQueue();
+  const workers=[];
+
+  for(let i=0;i<job.threads;i++){
+    workers.push(worker(browser));
+  }
+
+  Promise.all(workers).then(async ()=>{
+    await browser.close();
+    job.running=false;
+  });
 
   res.json({ok:true});
 });
@@ -116,75 +135,5 @@ app.get("/api/status",(req,res)=>{
   res.json(job);
 });
 
-/* =====================
-   HEADLESS TEST SYSTEM
-===================== */
-
-let lastReport=null;
-
-app.post("/api/run-tests", async (req,res)=>{
-
-  const { testCases } = req.body;
-
-  const browser = await puppeteer.launch({
-    headless:true,
-    args:["--no-sandbox","--disable-setuid-sandbox"]
-  });
-
-  const page = await browser.newPage();
-  const results=[];
-
-  for(const test of testCases){
-
-    let status="PASS";
-    let message="";
-    const startTime=Date.now();
-
-    try{
-      await page.goto("https://your-own-site.com");
-
-      await page.waitForSelector("#phoneInput");
-      await page.type("#phoneInput", test.phone);
-      await page.click("#submitBtn");
-
-      await page.waitForTimeout(2000);
-
-      const text = await page.evaluate(()=>document.body.innerText);
-
-      if(!text.includes(test.expectedText)){
-        status="FAIL";
-        message="Expected text not found";
-      }
-
-    }catch(e){
-      status="ERROR";
-      message=e.message;
-    }
-
-    results.push({
-      phone:test.phone,
-      status,
-      message,
-      duration:Date.now()-startTime
-    });
-  }
-
-  await browser.close();
-
-  lastReport={
-    total:results.length,
-    pass:results.filter(r=>r.status==="PASS").length,
-    fail:results.filter(r=>r.status==="FAIL").length,
-    error:results.filter(r=>r.status==="ERROR").length,
-    results
-  };
-
-  res.json(lastReport);
-});
-
-app.get("/api/report",(req,res)=>{
-  res.json(lastReport||{message:"No report yet"});
-});
-
 const PORT = process.env.PORT||3000;
-app.listen(PORT,()=>console.log("Running on",PORT));
+app.listen(PORT,()=>console.log("Server running"));
