@@ -3,97 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Headless Automation Dashboard</title>
-
+<title>Automation Dashboard</title>
 <style>
-body{margin:0;font-family:Segoe UI,Arial;background:#0b0f1a;color:#fff}
+body{margin:0;font-family:Arial;background:#0b0f1a;color:#fff}
 .container{display:flex;min-height:100vh}
 .sidebar{width:320px;background:#0f172a;padding:18px}
 .main{flex:1;padding:18px}
-h2{color:#38bdf8;margin-top:0}
-.label{font-size:12px;color:#94a3b8;margin-top:14px}
-input,textarea{
-  width:100%;padding:10px;margin-top:6px;
-  background:#020617;border:1px solid #1e293b;
-  color:#fff;border-radius:6px
-}
-button{
-  width:100%;padding:11px;margin-top:10px;
-  border:0;border-radius:6px;
-  font-weight:bold;cursor:pointer
-}
-.start{background:#22c55e;color:#000}
-.stop{background:#ef4444;color:#000}
-.status{font-size:13px;color:#94a3b8;margin-top:10px}
-.cards{
-  display:grid;grid-template-columns:repeat(4,1fr);
-  gap:12px;margin-top:10px
-}
-.card{
-  background:#020617;padding:14px;border-radius:10px;
-  text-align:center
-}
-.card h3{margin:0;font-size:13px;color:#94a3b8}
-.card p{margin:6px 0 0;font-size:26px}
-.list{
-  background:#020617;border-radius:10px;
-  margin-top:12px;padding:10px;max-height:180px;overflow:auto
-}
-.logbox{
-  background:#020617;border-radius:10px;
-  margin-top:14px;padding:12px
-}
-.log{height:200px;overflow:auto;font-size:12px}
-@media(max-width:900px){
-  .container{flex-direction:column}
-  .sidebar{width:100%}
-  .cards{grid-template-columns:repeat(2,1fr)}
-}
+input,textarea,select{
+width:100%;padding:10px;margin-top:6px;
+background:#020617;border:1px solid #1e293b;
+color:#fff;border-radius:6px}
+button{width:100%;padding:10px;margin-top:10px;border:0;border-radius:6px;font-weight:bold}
+.start{background:#22c55e}
+.stop{background:#ef4444}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
+.card{background:#020617;padding:10px;text-align:center;border-radius:8px}
 </style>
 </head>
-
 <body>
+
 <div class="container">
 
-<!-- LEFT -->
 <div class="sidebar">
-<h2>HEADLESS ENGINE</h2>
+<h2>ENGINE CONTROL</h2>
 
-<div class="label">ADD NUMBERS (bulk paste supported)</div>
-<textarea id="numInput" rows="4" placeholder="01711111111
-01722222222
-01733333333"></textarea>
+<textarea id="numInput" rows="4" placeholder="01711111111"></textarea>
 <button onclick="addNumber()">ADD NUMBERS</button>
-<div class="status">Total Numbers: <span id="numCount">0</span></div>
+<div>Total: <span id="numCount">0</span></div>
 
-<div class="label">DELAY (ms)</div>
-<input id="delayInput" type="number" value="2000">
+<input id="delayInput" type="number" value="2000" placeholder="Delay ms">
+<input id="threadInput" type="number" value="1" placeholder="Threads">
 
-<div class="label">THREADS</div>
-<input id="threadInput" type="number" value="1">
+<select id="headlessInput">
+<option value="true">Hidden (Headless)</option>
+<option value="false">Show Browser</option>
+</select>
 
-<button class="start" onclick="startEngine()">START ENGINE</button>
-<button class="stop" onclick="stopEngine()">STOP ENGINE</button>
+<button class="start" onclick="startEngine()">START</button>
+<button class="stop" onclick="stopEngine()">STOP</button>
 
-<div class="status" id="status">Status: Idle</div>
+<div id="status">Idle</div>
 </div>
 
-<!-- RIGHT -->
 <div class="main">
-<h2>DASHBOARD</h2>
-
 <div class="cards">
-  <div class="card"><h3>SUCCESS</h3><p id="success">0</p></div>
-  <div class="card"><h3>FAILED</h3><p id="failed">0</p></div>
-  <div class="card"><h3>ERROR</h3><p id="error">0</p></div>
-  <div class="card"><h3>TOTAL</h3><p id="total">0</p></div>
-</div>
-
-<div class="list" id="numberList"></div>
-
-<div class="logbox">
-<h3>LIVE ACTIVITY LOG</h3>
-<div class="log" id="log"></div>
+<div class="card">SUCCESS <p id="success">0</p></div>
+<div class="card">FAILED <p id="failed">0</p></div>
+<div class="card">ERROR <p id="error">0</p></div>
+<div class="card">TOTAL <p id="total">0</p></div>
 </div>
 </div>
 
@@ -101,66 +58,44 @@ button{
 
 <script>
 let numbers=[];
-const numListEl=document.getElementById("numberList");
-const logEl=document.getElementById("log");
-
-function render(){
-  numListEl.innerHTML="";
-  numbers.forEach((n,i)=>{
-    numListEl.innerHTML+=`${n}<br>`;
-  });
-  numCount.innerText=numbers.length;
-}
 
 function addNumber(){
-  const raw=numInput.value.trim();
-  if(!raw) return;
-  raw.split(/[\n, ]+/).forEach(n=>{
-    if(n && !numbers.includes(n)) numbers.push(n);
-  });
-  numInput.value="";
-  render();
-}
-
-function log(msg){
-  logEl.innerHTML=`[${new Date().toLocaleTimeString()}] ${msg}<br>`+logEl.innerHTML;
+const raw=document.getElementById("numInput").value.trim();
+if(!raw) return;
+raw.split(/[\n, ]+/).forEach(n=>{
+if(n && !numbers.includes(n)) numbers.push(n);
+});
+document.getElementById("numInput").value="";
+document.getElementById("numCount").innerText=numbers.length;
 }
 
 async function startEngine(){
-
-  if(numbers.length===0) return;
-
-  await fetch("/api/start-job",{
-    method:"POST",
-    headers:{ "Content-Type":"application/json" },
-    body:JSON.stringify({
-      numbers,
-      delay:parseInt(delayInput.value)||2000,
-      threads:parseInt(threadInput.value)||1
-    })
-  });
-
-  status.innerText="Status: Running";
-  log("ENGINE STARTED");
+await fetch("/api/start-job",{
+method:"POST",
+headers:{ "Content-Type":"application/json"},
+body:JSON.stringify({
+numbers,
+delay:parseInt(delayInput.value)||2000,
+threads:parseInt(threadInput.value)||1,
+headless: headlessInput.value==="true"
+})
+});
+status.innerText="Running";
 }
 
 async function stopEngine(){
-  await fetch("/api/stop-job",{method:"POST"});
-  status.innerText="Status: Idle";
-  log("ENGINE STOPPED");
+await fetch("/api/stop-job",{method:"POST"});
+status.innerText="Stopped";
 }
 
 async function updateStatus(){
-  const r = await fetch("/api/status");
-  const d = await r.json();
-
-  success.innerText=d.success;
-  failed.innerText=d.failed;
-  error.innerText=d.error;
-  total.innerText=d.total;
-
-  if(!d.running)
-    status.innerText="Status: Idle";
+const r=await fetch("/api/status");
+const d=await r.json();
+success.innerText=d.success;
+failed.innerText=d.failed;
+error.innerText=d.error;
+total.innerText=d.total;
+if(!d.running) status.innerText="Idle";
 }
 
 setInterval(updateStatus,1000);
