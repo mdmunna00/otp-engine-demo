@@ -2,58 +2,131 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Automation Dashboard</title>
+<title>Automation PRO</title>
 <style>
-body{margin:0;font-family:Arial;background:#0b0f1a;color:#fff}
-.container{display:flex;min-height:100vh}
-.sidebar{width:320px;background:#0f172a;padding:18px}
-.main{flex:1;padding:18px}
+body{margin:0;font-family:Segoe UI;background:#0b0f1a;color:#fff}
+.container{display:flex;height:100vh}
+.sidebar{
+width:330px;
+background:#0f172a;
+padding:20px;
+display:flex;
+flex-direction:column
+}
+.main{flex:1;padding:20px}
+h2{color:#38bdf8;margin-bottom:20px}
+
 input,textarea,select{
-width:100%;padding:10px;margin-top:6px;
-background:#020617;border:1px solid #1e293b;
-color:#fff;border-radius:6px}
-button{width:100%;padding:10px;margin-top:10px;border:0;border-radius:6px;font-weight:bold}
-.start{background:#22c55e}
-.stop{background:#ef4444}
-.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:10px}
-.card{background:#020617;padding:10px;text-align:center;border-radius:8px}
+width:100%;
+padding:10px;
+margin-top:8px;
+background:#020617;
+border:1px solid #1e293b;
+color:#fff;
+border-radius:6px
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:12px;
+border:0;
+border-radius:6px;
+font-weight:bold;
+cursor:pointer
+}
+
+.start{background:#22c55e;color:#000}
+.stop{background:#ef4444;color:#000}
+
+.stats{
+display:grid;
+grid-template-columns:repeat(4,1fr);
+gap:15px;
+margin-bottom:20px
+}
+
+.card{
+background:#020617;
+padding:15px;
+border-radius:10px;
+text-align:center
+}
+
+.card p{font-size:22px;margin:8px 0 0}
+
+.logbox{
+background:#020617;
+border-radius:10px;
+padding:15px;
+height:300px;
+overflow:auto;
+font-size:13px
+}
+
+.number-list{
+background:#020617;
+margin-top:15px;
+padding:10px;
+border-radius:8px;
+max-height:150px;
+overflow:auto;
+font-size:13px
+}
+
+.status{
+margin-top:10px;
+font-size:14px;
+color:#94a3b8
+}
 </style>
 </head>
-<body>
 
+<body>
 <div class="container">
 
 <div class="sidebar">
 <h2>ENGINE CONTROL</h2>
 
-<textarea id="numInput" rows="4" placeholder="01711111111"></textarea>
+<label>TARGET NUMBERS</label>
+<textarea id="numInput" rows="4"></textarea>
 <button onclick="addNumber()">ADD NUMBERS</button>
-<div>Total: <span id="numCount">0</span></div>
 
-<input id="delayInput" type="number" value="2000" placeholder="Delay ms">
-<input id="threadInput" type="number" value="1" placeholder="Threads">
+<div class="number-list" id="numberList"></div>
 
+<label>DELAY (ms)</label>
+<input id="delayInput" type="number" value="2000">
+
+<label>THREADS</label>
+<input id="threadInput" type="number" value="1">
+
+<label>BROWSER MODE</label>
 <select id="headlessInput">
 <option value="true">Hidden (Headless)</option>
 <option value="false">Show Browser</option>
 </select>
 
-<button class="start" onclick="startEngine()">START</button>
-<button class="stop" onclick="stopEngine()">STOP</button>
+<button class="start" onclick="startEngine()">START ENGINE</button>
+<button class="stop" onclick="stopEngine()">STOP ENGINE</button>
 
-<div id="status">Idle</div>
+<div class="status" id="connectionStatus">PC: Disconnected</div>
+<div class="status" id="engineStatus">Engine: Idle</div>
+<div class="status" id="currentNumber">Current: None</div>
+
 </div>
 
 <div class="main">
-<div class="cards">
-<div class="card">SUCCESS <p id="success">0</p></div>
-<div class="card">FAILED <p id="failed">0</p></div>
-<div class="card">ERROR <p id="error">0</p></div>
-<div class="card">TOTAL <p id="total">0</p></div>
-</div>
+
+<div class="stats">
+<div class="card">SUCCESS<p id="success">0</p></div>
+<div class="card">FAILED<p id="failed">0</p></div>
+<div class="card">ERROR<p id="error">0</p></div>
+<div class="card">TOTAL<p id="total">0</p></div>
 </div>
 
+<div class="logbox" id="logBox"></div>
+
+</div>
 </div>
 
 <script>
@@ -66,7 +139,15 @@ raw.split(/[\n, ]+/).forEach(n=>{
 if(n && !numbers.includes(n)) numbers.push(n);
 });
 document.getElementById("numInput").value="";
-document.getElementById("numCount").innerText=numbers.length;
+renderNumbers();
+}
+
+function renderNumbers(){
+const list=document.getElementById("numberList");
+list.innerHTML="";
+numbers.forEach(n=>{
+list.innerHTML+=`<div>${n}</div>`;
+});
 }
 
 async function startEngine(){
@@ -80,22 +161,57 @@ threads:parseInt(threadInput.value)||1,
 headless: headlessInput.value==="true"
 })
 });
-status.innerText="Running";
 }
 
 async function stopEngine(){
 await fetch("/api/stop-job",{method:"POST"});
-status.innerText="Stopped";
 }
 
 async function updateStatus(){
+try{
 const r=await fetch("/api/status");
 const d=await r.json();
+
 success.innerText=d.success;
 failed.innerText=d.failed;
 error.innerText=d.error;
 total.innerText=d.total;
-if(!d.running) status.innerText="Idle";
+
+document.getElementById("currentNumber").innerText=
+"Current: "+(d.current || "None");
+
+renderNumbersFromServer(d.numbers);
+
+if(d.running){
+engineStatus.innerText="Engine: Running";
+}else{
+engineStatus.innerText="Engine: Idle";
+}
+
+if(d.lastPing && Date.now()-d.lastPing<5000){
+connectionStatus.innerText="PC: Connected";
+}else{
+connectionStatus.innerText="PC: Disconnected";
+}
+
+renderLogs(d.logs);
+
+}catch(e){
+connectionStatus.innerText="PC: Disconnected";
+}
+}
+
+function renderNumbersFromServer(serverNumbers){
+numbers=serverNumbers;
+renderNumbers();
+}
+
+function renderLogs(logs){
+const box=document.getElementById("logBox");
+box.innerHTML="";
+logs.forEach(l=>{
+box.innerHTML+=l+"<br>";
+});
 }
 
 setInterval(updateStatus,1000);
