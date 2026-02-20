@@ -185,16 +185,19 @@ document.getElementById("threadValue").innerText=
 document.getElementById("threadInput").value;
 }
 
-function addNumber(){
+async function addNumber(){
 const raw=document.getElementById("numInput").value.trim();
 if(!raw) return;
 
-raw.split(/[\n, ]+/).forEach(n=>{
-if(n && !numbers.includes(n)) numbers.push(n);
+const newNumbers = raw.split(/[\n, ]+/).filter(n=>n);
+
+await fetch("/api/add-numbers",{
+method:"POST",
+headers:{ "Content-Type":"application/json"},
+body:JSON.stringify({ numbers:newNumbers })
 });
 
 document.getElementById("numInput").value="";
-renderNumbers();
 }
 
 function renderNumbers(){
