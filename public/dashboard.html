@@ -2,19 +2,40 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Automation PRO</title>
+
 <style>
-body{margin:0;font-family:Segoe UI;background:#0b0f1a;color:#fff}
-.container{display:flex;height:100vh}
+body{
+margin:0;
+font-family:Segoe UI;
+background:#0b0f1a;
+color:#fff
+}
+
+.container{
+display:flex;
+min-height:100vh;
+flex-wrap:wrap
+}
+
 .sidebar{
-width:330px;
+width:320px;
 background:#0f172a;
 padding:20px;
-display:flex;
-flex-direction:column
+box-sizing:border-box
 }
-.main{flex:1;padding:20px}
-h2{color:#38bdf8;margin-bottom:20px}
+
+.main{
+flex:1;
+padding:20px;
+box-sizing:border-box
+}
+
+h2{
+color:#38bdf8;
+margin-bottom:15px
+}
 
 input,textarea,select{
 width:100%;
@@ -41,7 +62,7 @@ cursor:pointer
 
 .stats{
 display:grid;
-grid-template-columns:repeat(4,1fr);
+grid-template-columns:repeat(auto-fit,minmax(120px,1fr));
 gap:15px;
 margin-bottom:20px
 }
@@ -53,7 +74,10 @@ border-radius:10px;
 text-align:center
 }
 
-.card p{font-size:22px;margin:8px 0 0}
+.card p{
+font-size:20px;
+margin:8px 0 0
+}
 
 .logbox{
 background:#020617;
@@ -66,12 +90,17 @@ font-size:13px
 
 .number-list{
 background:#020617;
-margin-top:15px;
+margin-top:12px;
 padding:10px;
 border-radius:8px;
-max-height:150px;
+max-height:120px;
 overflow:auto;
 font-size:13px
+}
+
+.number-item{
+padding:4px 0;
+border-bottom:1px solid #1e293b
 }
 
 .status{
@@ -79,17 +108,34 @@ margin-top:10px;
 font-size:14px;
 color:#94a3b8
 }
+
+.slider-value{
+margin-top:5px;
+font-size:13px;
+color:#94a3b8
+}
+
+/* MOBILE RESPONSIVE */
+@media(max-width:900px){
+.container{
+flex-direction:column
+}
+.sidebar{
+width:100%
+}
+}
 </style>
 </head>
 
 <body>
+
 <div class="container">
 
 <div class="sidebar">
 <h2>ENGINE CONTROL</h2>
 
 <label>TARGET NUMBERS</label>
-<textarea id="numInput" rows="4"></textarea>
+<textarea id="numInput" rows="3"></textarea>
 <button onclick="addNumber()">ADD NUMBERS</button>
 
 <div class="number-list" id="numberList"></div>
@@ -98,7 +144,8 @@ color:#94a3b8
 <input id="delayInput" type="number" value="2000">
 
 <label>THREADS</label>
-<input id="threadInput" type="number" value="1">
+<input type="range" id="threadInput" min="1" max="10" value="1" oninput="updateThreadValue()">
+<div class="slider-value">Threads: <span id="threadValue">1</span></div>
 
 <label>BROWSER MODE</label>
 <select id="headlessInput">
@@ -130,14 +177,22 @@ color:#94a3b8
 </div>
 
 <script>
+
 let numbers=[];
+
+function updateThreadValue(){
+document.getElementById("threadValue").innerText=
+document.getElementById("threadInput").value;
+}
 
 function addNumber(){
 const raw=document.getElementById("numInput").value.trim();
 if(!raw) return;
+
 raw.split(/[\n, ]+/).forEach(n=>{
 if(n && !numbers.includes(n)) numbers.push(n);
 });
+
 document.getElementById("numInput").value="";
 renderNumbers();
 }
@@ -146,7 +201,7 @@ function renderNumbers(){
 const list=document.getElementById("numberList");
 list.innerHTML="";
 numbers.forEach(n=>{
-list.innerHTML+=`<div>${n}</div>`;
+list.innerHTML+=`<div class="number-item">${n}</div>`;
 });
 }
 
@@ -180,7 +235,8 @@ total.innerText=d.total;
 document.getElementById("currentNumber").innerText=
 "Current: "+(d.current || "None");
 
-renderNumbersFromServer(d.numbers);
+numbers=d.numbers || [];
+renderNumbers();
 
 if(d.running){
 engineStatus.innerText="Engine: Running";
@@ -194,16 +250,11 @@ connectionStatus.innerText="PC: Connected";
 connectionStatus.innerText="PC: Disconnected";
 }
 
-renderLogs(d.logs);
+renderLogs(d.logs || []);
 
 }catch(e){
 connectionStatus.innerText="PC: Disconnected";
 }
-}
-
-function renderNumbersFromServer(serverNumbers){
-numbers=serverNumbers;
-renderNumbers();
 }
 
 function renderLogs(logs){
@@ -215,6 +266,7 @@ box.innerHTML+=l+"<br>";
 }
 
 setInterval(updateStatus,1000);
+
 </script>
 
 </body>
